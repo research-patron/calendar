@@ -78,7 +78,7 @@ Public Sub AddTask_Click()
     Next c
 
     If nextDataCol = 0 Then
-        ShowError "提出状況管理シートに新しいタスクを追加する列スペースがありません。（F列～IV列が全て使用中）"
+        ShowError "提出状況管理シートに新しいタスクを追加する列スペースがありません。（F列?IV列が全て使用中）"
         GoTo CleanUpAndExit
     End If
 
@@ -173,4 +173,5 @@ Private Function ValidateTaskInput(taskName As String, 担当者 As String, 依�
     
     ValidateTaskInput = True
 End Function
+
 

@@ -90,30 +90,30 @@ Private Sub InitializeMuniList()
     gMuniList(9).Code = "209": gMuniList(9).Name = "長井市": gMuniList(9).FilterOut = False
     gMuniList(10).Code = "210": gMuniList(10).Name = "天童市": gMuniList(10).FilterOut = False
     gMuniList(11).Code = "211": gMuniList(11).Name = "東根市": gMuniList(11).FilterOut = False
-    gMuniList(12).Code = "212": gMuniList(12).Name = "尾花沢市": gMuniList(12).FilterOut = False
-    gMuniList(13).Code = "213": gMuniList(13).Name = "南陽市": gMuniList(13).FilterOut = False
-    gMuniList(14).Code = "301": gMuniList(14).Name = "山辺町": gMuniList(14).FilterOut = False
-    gMuniList(15).Code = "302": gMuniList(15).Name = "中山町": gMuniList(15).FilterOut = False
-    gMuniList(16).Code = "321": gMuniList(16).Name = "河北町": gMuniList(16).FilterOut = False
-    gMuniList(17).Code = "322": gMuniList(17).Name = "西川町": gMuniList(17).FilterOut = False
-    gMuniList(18).Code = "324": gMuniList(18).Name = "大江町": gMuniList(18).FilterOut = False
-    gMuniList(19).Code = "341": gMuniList(19).Name = "大石田町": gMuniList(19).FilterOut = False
-    gMuniList(20).Code = "361": gMuniList(20).Name = "金山町": gMuniList(20).FilterOut = False
-    gMuniList(21).Code = "362": gMuniList(21).Name = "最上町": gMuniList(21).FilterOut = False
-    gMuniList(22).Code = "363": gMuniList(22).Name = "舟形町": gMuniList(22).FilterOut = False
-    gMuniList(23).Code = "364": gMuniList(23).Name = "真室川町": gMuniList(23).FilterOut = False
-    gMuniList(24).Code = "365": gMuniList(24).Name = "大蔵村": gMuniList(24).FilterOut = False
-    gMuniList(25).Code = "367": gMuniList(25).Name = "戸沢村": gMuniList(25).FilterOut = False
-    gMuniList(26).Code = "381": gMuniList(26).Name = "高畠町": gMuniList(26).FilterOut = False
-    gMuniList(27).Code = "382": gMuniList(27).Name = "川西町": gMuniList(27).FilterOut = False
-    gMuniList(28).Code = "401": gMuniList(28).Name = "小国町": gMuniList(28).FilterOut = False
-    gMuniList(29).Code = "402": gMuniList(29).Name = "白鷹町": gMuniList(29).FilterOut = False
-    gMuniList(30).Code = "426": gMuniList(30).Name = "三川町": gMuniList(30).FilterOut = False
-    gMuniList(31).Code = "428": gMuniList(31).Name = "庄内町": gMuniList(31).FilterOut = False
-    gMuniList(32).Code = "461": gMuniList(32).Name = "遊佐町": gMuniList(32).FilterOut = False
-    gMuniList(33).Code = "(323)": gMuniList(33).Name = "朝日町": gMuniList(33).FilterOut = True
-    gMuniList(34).Code = "(366)": gMuniList(34).Name = "鮭川村": gMuniList(34).FilterOut = True
-    gMuniList(35).Code = "(403)": gMuniList(35).Name = "飯豊町": gMuniList(35).FilterOut = True
+    gMuniList(12).Code = "213": gMuniList(12).Name = "南陽市": gMuniList(12).FilterOut = False
+    gMuniList(13).Code = "301": gMuniList(13).Name = "山辺町": gMuniList(13).FilterOut = False
+    gMuniList(14).Code = "302": gMuniList(14).Name = "中山町": gMuniList(14).FilterOut = False
+    gMuniList(15).Code = "321": gMuniList(15).Name = "河北町": gMuniList(15).FilterOut = False
+    gMuniList(16).Code = "322": gMuniList(16).Name = "西川町": gMuniList(16).FilterOut = False
+    gMuniList(17).Code = "324": gMuniList(17).Name = "大江町": gMuniList(17).FilterOut = False
+    gMuniList(18).Code = "361": gMuniList(18).Name = "金山町": gMuniList(18).FilterOut = False
+    gMuniList(19).Code = "362": gMuniList(19).Name = "最上町": gMuniList(19).FilterOut = False
+    gMuniList(20).Code = "363": gMuniList(20).Name = "舟形町": gMuniList(20).FilterOut = False
+    gMuniList(21).Code = "364": gMuniList(21).Name = "真室川町": gMuniList(21).FilterOut = False
+    gMuniList(22).Code = "365": gMuniList(22).Name = "大蔵村": gMuniList(22).FilterOut = False
+    gMuniList(23).Code = "367": gMuniList(23).Name = "戸沢村": gMuniList(23).FilterOut = False
+    gMuniList(24).Code = "381": gMuniList(24).Name = "高畠町": gMuniList(24).FilterOut = False
+    gMuniList(25).Code = "382": gMuniList(25).Name = "川西町": gMuniList(25).FilterOut = False
+    gMuniList(26).Code = "401": gMuniList(26).Name = "小国町": gMuniList(26).FilterOut = False
+    gMuniList(27).Code = "402": gMuniList(27).Name = "白鷹町": gMuniList(27).FilterOut = False
+    gMuniList(28).Code = "426": gMuniList(28).Name = "三川町": gMuniList(28).FilterOut = False
+    gMuniList(29).Code = "428": gMuniList(29).Name = "庄内町": gMuniList(29).FilterOut = False
+    gMuniList(30).Code = "461": gMuniList(30).Name = "遊佐町": gMuniList(30).FilterOut = False
+    gMuniList(31).Code = "901": gMuniList(31).Name = "尾大環": gMuniList(31).FilterOut = False
+    gMuniList(32).Code = "（323）": gMuniList(32).Name = "朝日町": gMuniList(32).FilterOut = False
+    gMuniList(33).Code = "（363）": gMuniList(33).Name = "鮭川村": gMuniList(33).FilterOut = False
+    gMuniList(34).Code = "（403）": gMuniList(34).Name = "飯豊町": gMuniList(34).FilterOut = False
+    gMuniList(35).Code = "": gMuniList(35).Name = "": gMuniList(35).FilterOut = True
     
     ' ReDimとデータ代入が成功した時点でフラグをTrueにする
     gMuniListInitialized = True
@@ -192,8 +192,7 @@ Private Function SetupCalendarSheet(isNewSheet As Boolean) As Worksheet
                 .Rows(i).RowHeight = 18
             Next i
             
-            Set refreshButtonCell = .Range(.Cells(1, "I"), .Cells(CALENDAR_HEADER_ROWS, "I"))
-            If CALENDAR_HEADER_ROWS > 1 Then refreshButtonCell.Merge
+            Set refreshButtonCell = .Range("I1:I" & CALENDAR_HEADER_ROWS)
             refreshButtonCell.VerticalAlignment = xlCenter
             refreshButtonCell.HorizontalAlignment = xlCenter
             Call CreateButton(ws, refreshButtonCell, "更新", "M_Calendar.RefreshCalendar_Click")
@@ -211,8 +210,7 @@ Private Function SetupCalendarSheet(isNewSheet As Boolean) As Worksheet
             End If
         Next shp
         If Not refreshBtnExists Then
-            Set refreshButtonCell = ws.Range(ws.Cells(1, "I"), ws.Cells(CALENDAR_HEADER_ROWS, "I"))
-            If CALENDAR_HEADER_ROWS > 1 Then refreshButtonCell.Merge
+            Set refreshButtonCell = ws.Range("I1:I" & CALENDAR_HEADER_ROWS)
             refreshButtonCell.VerticalAlignment = xlCenter
             refreshButtonCell.HorizontalAlignment = xlCenter
             Call CreateButton(ws, refreshButtonCell, "更新", "M_Calendar.RefreshCalendar_Click")
@@ -310,26 +308,19 @@ Private Function SetupSubmissionSheet(isNewSheet As Boolean) As Worksheet
             .Cells(4, "B").Value = "県_〆切日:"
             .Cells(5, "B").Value = "提出状況 (%):"
             .Cells(7, "B").Value = "未提出市町村:"
-            With .Range(.Cells(3, "C"), .Cells(3, "D"))
-                .Merge
-                .HorizontalAlignment = xlLeft
-            End With
-             With .Range(.Cells(4, "C"), .Cells(4, "D"))
-                .Merge
-                .HorizontalAlignment = xlLeft
-            End With
-             With .Range(.Cells(5, "C"), .Cells(5, "D"))
-                .Merge
-                .HorizontalAlignment = xlLeft
-            End With
-            With .Range(.Cells(7, "C"), .Cells(7, "E"))
-                .Merge
-                .WrapText = True
-                .VerticalAlignment = xlTop
-            End With
+            
+            ' 各セルの初期化（結合しない）
+            .Cells(3, "C").Value = ""
+            .Cells(4, "C").Value = ""
+            .Cells(5, "C").Value = ""
+            .Cells(7, "C").Value = ""
+            
+            ' 未提出市町村のセル設定
+            .Cells(7, "C").WrapText = True
+            .Cells(7, "C").VerticalAlignment = xlTop
             .Rows(7).RowHeight = 40
 
-            Set btnShowAllTasks = CreateButton(ws, .Range(.Cells(3, "E"), .Cells(3, "F")), "全タスク", "M_Submission.ShowAllTasksInSubmission_Click", .Columns("E").Width + .Columns("F").Width, , , BTN_NAME_SUBMISSION_SHOW_ALL_TASKS)
+            Set btnShowAllTasks = CreateButton(ws, .Range("E3"), "全タスク", "M_Submission.ShowAllTasksInSubmission_Click", .Columns("E").Width, , , BTN_NAME_SUBMISSION_SHOW_ALL_TASKS)
             Set btnAllMuni = CreateButton(ws, .Cells(5, "E"), "全市町村", "M_Submission.FilterAllMunicipalities_Click", .Columns("E").Width, , , BTN_NAME_FILTER_ALL)
             Set btnSpecificMuni = CreateButton(ws, .Cells(5, "F"), "未提出のみ", "M_Submission.FilterSpecificMunicipalities_Click", .Columns("F").Width, , , BTN_NAME_FILTER_SPECIFIC)
 
@@ -360,6 +351,14 @@ Private Function SetupSubmissionSheet(isNewSheet As Boolean) As Worksheet
         End With
     Else
         Call SetDefaultFont(ws)
+        
+        ' 既存のセル結合を解除（念のため）
+        On Error Resume Next
+        If ws.Range("C7:E7").MergeCells Then
+            ws.Range("C7:E7").UnMerge
+        End If
+        On Error GoTo 0
+        
         For i = LBound(btnExists) To UBound(btnExists): btnExists(i) = False: Next i
         For Each shp In ws.Shapes
             If shp.Type = msoFormControl And shp.FormControlType = xlButtonControl Then
@@ -368,7 +367,7 @@ Private Function SetupSubmissionSheet(isNewSheet As Boolean) As Worksheet
                 If shp.Name = BTN_NAME_FILTER_SPECIFIC Then btnExists(3) = True
             End If
         Next shp
-        If Not btnExists(1) Then CreateButton ws, ws.Range(ws.Cells(3, "E"), ws.Cells(3, "F")), "全タスク", "M_Submission.ShowAllTasksInSubmission_Click", ws.Columns("E").Width + ws.Columns("F").Width, , , BTN_NAME_SUBMISSION_SHOW_ALL_TASKS
+        If Not btnExists(1) Then CreateButton ws, ws.Range("E3"), "全タスク", "M_Submission.ShowAllTasksInSubmission_Click", ws.Columns("E").Width, , , BTN_NAME_SUBMISSION_SHOW_ALL_TASKS
         If Not btnExists(2) Then CreateButton ws, ws.Cells(5, "E"), "全市町村", "M_Submission.FilterAllMunicipalities_Click", ws.Columns("E").Width, , , BTN_NAME_FILTER_ALL
         If Not btnExists(3) Then CreateButton ws, ws.Cells(5, "F"), "未提出のみ", "M_Submission.FilterSpecificMunicipalities_Click", ws.Columns("F").Width, , , BTN_NAME_FILTER_SPECIFIC
         
@@ -379,11 +378,11 @@ Private Function SetupSubmissionSheet(isNewSheet As Boolean) As Worksheet
         End If
         
         Dim currentLastRowB As Long
-        currentLastRowB = ws.Cells(Rows.Count, "B").End(xlUp).Row
+        currentLastRowB = ws.Cells(Rows.Count, "B").End(xlUp).row
         If currentLastRowB < MUNILIST_HEADER_ROW + 1 Then currentLastRowB = MUNILIST_HEADER_ROW ' データ行がない場合
 
         If currentLastRowB > lastMuniDataRow And lastMuniDataRow > MUNILIST_HEADER_ROW Then ' gMuniListより多い行がある
-             ws.Range("B" & (lastMuniDataRow + 1) & ":C" & currentLastRowB).ClearContents
+             ws.Range("B" & (lastMuniDataRow + 1) & ":C" & currentLastRowB).clearContents
         End If
         
         muniRow = MUNILIST_HEADER_ROW + 1
@@ -397,7 +396,7 @@ Private Function SetupSubmissionSheet(isNewSheet As Boolean) As Worksheet
             Next i
             ' gMuniListの数より現在の市町村リスト行が少ない場合、余分な行をクリア（手動削除された場合など）
             If currentLastRowB >= muniRow And currentLastRowB > MUNILIST_HEADER_ROW Then
-                ws.Range("B" & muniRow & ":C" & currentLastRowB).ClearContents
+                ws.Range("B" & muniRow & ":C" & currentLastRowB).clearContents
                 ws.Range("B" & muniRow & ":C" & currentLastRowB).EntireRow.Hidden = False '非表示も解除
             End If
         End If

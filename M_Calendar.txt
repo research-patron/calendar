@@ -40,7 +40,7 @@ Public Sub DrawCalendar()
     If dataStartRow <= Rows.Count And ganttStartColNum <= lastColToClear Then
         On Error Resume Next
         With wsCalendar.Range(wsCalendar.Cells(dataStartRow, ganttStartColNum), wsCalendar.Cells(Rows.Count, lastColToClear))
-            .ClearContents
+            .clearContents
             .Interior.ColorIndex = xlNone
             .Borders.LineStyle = xlNone
             .Font.ColorIndex = xlAutomatic
@@ -52,7 +52,7 @@ Public Sub DrawCalendar()
     If ganttStartColNum <= lastColToClear Then
         On Error Resume Next
         With wsCalendar.Range(wsCalendar.Cells(1, ganttStartColNum), wsCalendar.Cells(CALENDAR_HEADER_ROWS, lastColToClear))
-            .ClearContents
+            .clearContents
             .Interior.ColorIndex = xlNone
             .Borders.LineStyle = xlNone
             .Font.Bold = True
@@ -339,7 +339,7 @@ Public Sub DeleteTask_FromButton()
     Set wsSubmission = GetSheet(SUBMISSION_SHEET_NAME)
     If wsSubmission Is Nothing Then Exit Sub
 
-    taskRow = btn.TopLeftCell.Row
+    taskRow = btn.TopLeftCell.row
     If taskRow < dataStartRow Then Exit Sub
 
     taskName = Trim(CStr(wsCalendar.Cells(taskRow, "C").Value))
@@ -397,7 +397,7 @@ Public Sub ShowTaskSubmissionStatus_FromButton()
     Set wsCalendar = GetSheet(CALENDAR_SHEET_NAME)
     If wsCalendar Is Nothing Then Exit Sub
 
-    taskRow = btn.TopLeftCell.Row
+    taskRow = btn.TopLeftCell.row
     If taskRow < dataStartRow Then Exit Sub
     
     taskName = Trim(CStr(wsCalendar.Cells(taskRow, "C").Value))
@@ -464,4 +464,5 @@ Private Function GetTaskSubmissionPercentage(taskName As String, wsSubmission As
         GetTaskSubmissionPercentage = "0%"
     End If
 End Function
+
 

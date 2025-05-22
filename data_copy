@@ -1,26 +1,22 @@
 Option Explicit
 
 ' グローバル変数
-Dim colMunicipalityCode As New Collection ' 市町村コードのコレクション
-Dim colMunicipalityName As New Collection ' 市町村名のコレクション
-
-' Office定数の代替
-Const xlOpenXMLWorkbook As Long = 51  ' Excel 2007-2013以降のファイル形式
-Const xlDown As Long = -4121
-Const xlPasteValues As Long = -4163
+Dim dictMunicipalities As Object ' 市町村コードと名前の辞書
 
 ' Excelファイルを開いた際に実行される処理
 Sub Auto_Open()
     ' 設定シートの初期化
     InitializeSettingsSheet
-    ' 市町村コードと名前のコレクションの初期化
-    InitializeMunicipalityCollection
+    ' 市町村コードと名前の辞書の初期化
+    InitializeMunicipalityDictionary
 End Sub
 
 ' 設定シートの初期化
 Sub InitializeSettingsSheet()
     Dim ws As Worksheet
-    Dim btn As Object ' Buttonオブジェクト用にObject型を使用
+    Dim btnCopy As Button
+    Dim btnClear As Button
+    Dim btnExport As Button
     
     ' 設定シートが存在するか確認
     On Error Resume Next
@@ -36,553 +32,874 @@ Sub InitializeSettingsSheet()
     ' シートのクリア
     ws.Cells.Clear
     
+    ' 列幅を調整
+    ws.Columns("A:A").ColumnWidth = 18
+    ws.Columns("B:B").ColumnWidth = 50
+    ws.Columns("D:D").ColumnWidth = 15
+    ws.Columns("E:E").ColumnWidth = 60
+    
     ' ヘッダー設定
-    ws.Range("A1").Value = "市町村データコピーツール"
-    ws.Range("A1").Font.Size = 14
+    ws.Range("A1").Value = "山形県市町村データコピーツール"
+    ws.Range("A1").Font.Size = 16
     ws.Range("A1").Font.Bold = True
+    ws.Range("A1:B1").Merge
     
-    ws.Range("A3").Value = "コピー先ファイル："
-    ws.Range("A4").Value = "コピー元ファイル："
-    
+    ' ボタン配置
     ' コピー先ファイル選択ボタン
-    Set btn = ws.Buttons.Add(150, 60, 120, 30)
-    btn.OnAction = "SelectDestinationFile"
-    btn.Caption = "コピー先を選択"
+    ws.Buttons.Add(50, 45, 140, 25).Select
+    Selection.OnAction = "SelectDestinationFile"
+    Selection.Characters.Text = "コピー先ファイル選択"
     
     ' コピー元ファイル選択ボタン
-    Set btn = ws.Buttons.Add(150, 90, 120, 30)
-    btn.OnAction = "SelectSourceFiles"
-    btn.Caption = "コピー元を選択"
+    ws.Buttons.Add(200, 45, 140, 25).Select
+    Selection.OnAction = "SelectSourceFiles"
+    Selection.Characters.Text = "コピー元ファイル選択"
     
     ' コピー実行ボタン
-    Set btn = ws.Buttons.Add(300, 60, 120, 60)
-    btn.OnAction = "ExecuteCopy"
-    btn.Caption = "コピー実行"
-    
-    ' クリアボタン
-    Set btn = ws.Buttons.Add(450, 60, 120, 30)
-    btn.OnAction = "ClearSettings"
-    btn.Caption = "クリア"
+    ws.Buttons.Add(350, 45, 100, 25).Select
+    Selection.OnAction = "ExecuteCopy"
+    Selection.Characters.Text = "コピー実行"
     
     ' エクスポートボタン
-    Set btn = ws.Buttons.Add(450, 90, 120, 30)
-    btn.OnAction = "ExportSheets"
-    btn.Caption = "シートをエクスポート"
+    ws.Buttons.Add(460, 45, 120, 25).Select
+    Selection.OnAction = "ExportSheets"
+    Selection.Characters.Text = "シートをエクスポート"
+    
+    ' クリアボタン（エクスポートボタンの下）
+    ws.Buttons.Add(460, 75, 120, 25).Select
+    Selection.OnAction = "ClearSettings"
+    Selection.Characters.Text = "設定をクリア"
     
     ' ファイルリスト表示エリアのヘッダー
     ws.Range("A6").Value = "選択されたファイル："
-    ws.Range("A7").Value = "コピー先：" ' B7にパス表示
-    ws.Range("A9").Value = "コピー元：" ' A10からリスト表示
-
+    ws.Range("A6").Font.Bold = True
+    ws.Range("A7").Value = "コピー先："
+    ws.Range("A9").Value = "コピー元："
+    
+    ' ログ表示エリア（右側に配置）
+    ws.Range("E6").Value = "処理ログ："
+    ws.Range("E6").Font.Bold = True
+    ws.Range("E7").Value = "処理結果がここに表示されます"
+    
+    ' ファイル名規則の説明を追加（下部に配置、結合セルは使わない）
+    ws.Range("A20").Value = "【ファイル名規則】"
+    ws.Range("A20").Font.Bold = True
+    ws.Range("A21").Value = "コピー元ファイル名は「市町村コード_市町村名.xlsx」形式である必要があります"
+    ws.Range("A22").Value = "例：201_山形市.xlsx、203_鶴岡市.xlsx、999_流域.xlsx"
+    ws.Range("A21:A22").Font.Size = 9
+    
+    ' 区切り線を追加
+    ws.Range("A5:E5").Borders(xlEdgeBottom).LineStyle = xlContinuous
+    ws.Range("A19:E19").Borders(xlEdgeBottom).LineStyle = xlContinuous
+    
+    ' 背景色を設定
+    ws.Range("A1:E1").Interior.Color = RGB(200, 230, 201)
+    ws.Range("A20:E22").Interior.Color = RGB(255, 243, 205)
 End Sub
 
-' 市町村コードと名前のコレクションの初期化
-Sub InitializeMunicipalityCollection()
-    ' On Error Resume Next ' AddMunicipalityPair内でエラー処理するため、ここでは不要な場合もあるが、
-                        ' 万が一の重複追加を許容するなら残す。現状のリストでは363がキーとして1つ。
+' 市町村コードと名前の辞書の初期化
+Sub InitializeMunicipalityDictionary()
+    ' 辞書オブジェクトの作成
+    Set dictMunicipalities = CreateObject("Scripting.Dictionary")
     
     ' 山形県の市町村コードと名前のマッピング
-    AddMunicipalityPair "201", "山形市"
-    AddMunicipalityPair "202", "米沢市"
-    AddMunicipalityPair "203", "鶴岡市"
-    AddMunicipalityPair "204", "酒田市"
-    AddMunicipalityPair "205", "新庄市"
-    AddMunicipalityPair "206", "寒河江市"
-    AddMunicipalityPair "207", "上山市"
-    AddMunicipalityPair "208", "村山市"
-    AddMunicipalityPair "209", "長井市"
-    AddMunicipalityPair "210", "天童市"
-    AddMunicipalityPair "211", "東根市"
-    AddMunicipalityPair "213", "南陽市"
-    AddMunicipalityPair "301", "山辺町"
-    AddMunicipalityPair "302", "中山町"
-    AddMunicipalityPair "321", "河北町"
-    AddMunicipalityPair "322", "西川町"
-    AddMunicipalityPair "323", "朝日町"
-    AddMunicipalityPair "324", "大江町"
-    AddMunicipalityPair "361", "金山町"
-    AddMunicipalityPair "362", "最上町"
-    AddMunicipalityPair "363", "舟形町/鮭川村" ' 要件定義書のリストでは363は舟形町と鮭川村の2つだが、コード上は集約
-    AddMunicipalityPair "364", "真室川町"
-    AddMunicipalityPair "365", "大蔵村"
-    AddMunicipalityPair "367", "戸沢村"
-    AddMunicipalityPair "381", "高畠町"
-    AddMunicipalityPair "382", "川西町"
-    AddMunicipalityPair "401", "小国町"
-    AddMunicipalityPair "402", "白鷹町"
-    AddMunicipalityPair "403", "飯豊町"
-    AddMunicipalityPair "426", "三川町"
-    AddMunicipalityPair "428", "庄内町"
-    AddMunicipalityPair "461", "遊佐町"
-    AddMunicipalityPair "901", "尾大環"
+    dictMunicipalities.Add "201", "山形市"
+    dictMunicipalities.Add "202", "米沢市"
+    dictMunicipalities.Add "203", "鶴岡市"
+    dictMunicipalities.Add "204", "酒田市"
+    dictMunicipalities.Add "205", "新庄市"
+    dictMunicipalities.Add "206", "寒河江市"
+    dictMunicipalities.Add "207", "上山市"
+    dictMunicipalities.Add "208", "村山市"
+    dictMunicipalities.Add "209", "長井市"
+    dictMunicipalities.Add "210", "天童市"
+    dictMunicipalities.Add "211", "東根市"
+    dictMunicipalities.Add "213", "南陽市"
+    dictMunicipalities.Add "301", "山辺町"
+    dictMunicipalities.Add "302", "中山町"
+    dictMunicipalities.Add "321", "河北町"
+    dictMunicipalities.Add "322", "西川町"
+    dictMunicipalities.Add "323", "朝日町"
+    dictMunicipalities.Add "324", "大江町"
+    dictMunicipalities.Add "361", "金山町"
+    dictMunicipalities.Add "362", "最上町"
+    dictMunicipalities.Add "363", "舟形町"
+    dictMunicipalities.Add "364", "真室川町"
+    dictMunicipalities.Add "365", "大蔵村"
+    dictMunicipalities.Add "366", "鮭川村"
+    dictMunicipalities.Add "367", "戸沢村"
+    dictMunicipalities.Add "381", "高畠町"
+    dictMunicipalities.Add "382", "川西町"
+    dictMunicipalities.Add "401", "小国町"
+    dictMunicipalities.Add "402", "白鷹町"
+    dictMunicipalities.Add "403", "飯豊町"
+    dictMunicipalities.Add "426", "三川町"
+    dictMunicipalities.Add "428", "庄内町"
+    dictMunicipalities.Add "461", "遊佐町"
+    dictMunicipalities.Add "901", "尾大環"
+    dictMunicipalities.Add "999", "流域"
+End Sub
+
+' ファイル名が標準形式かチェックする関数
+Function IsValidFileName(fileName As String) As Boolean
+    Dim fname As String
+    Dim pos As Integer
+    Dim code As String
+    Dim name As String
     
-    ' On Error GoTo 0 ' 対応するエラー処理がないためコメントアウト
-End Sub
-
-' 市町村コードと名前のペアを追加するヘルパー関数
-Sub AddMunicipalityPair(code As String, name As String)
-    On Error Resume Next ' 重複キーエラーを無視して追加を試みる
-    colMunicipalityCode.Add code, code
-    colMunicipalityName.Add name, code
-    If Err.Number <> 0 Then
-        ' 必要であればエラーログなどを記述
-        Err.Clear
+    IsValidFileName = False
+    
+    ' ファイル名のみを取得 (パスなし)
+    pos = InStrRev(fileName, "\")
+    If pos > 0 Then
+        fname = Mid(fileName, pos + 1)
+    Else
+        fname = fileName
     End If
-    On Error GoTo 0
-End Sub
-
-' コードから市町村名を取得する関数
-Function GetMunicipalityName(code As String) As String
-    On Error Resume Next
-    GetMunicipalityName = colMunicipalityName(code)
-    If Err.Number <> 0 Then
-        GetMunicipalityName = "" ' 見つからない場合は空文字
-        Err.Clear
+    
+    ' 拡張子を除去
+    pos = InStrRev(fname, ".")
+    If pos > 0 Then
+        fname = Left(fname, pos - 1)
     End If
-    On Error GoTo 0
-End Function
-
-' 市町村コードが存在するかチェックする関数
-Function MunicipalityCodeExists(code As String) As Boolean
-    On Error Resume Next
-    Dim tempValue As Variant
-    tempValue = colMunicipalityName(code) ' Keyに対応するItemを取得しようと試みる
-    MunicipalityCodeExists = (Err.Number = 0 And Not IsEmpty(tempValue))
-    Err.Clear
-    On Error GoTo 0
+    
+    ' 括弧がある場合は除去
+    fname = Replace(fname, "(", "")
+    fname = Replace(fname, "（", "")
+    fname = Replace(fname, ")", "")
+    fname = Replace(fname, "）", "")
+    
+    ' 市町村コードと名前を抽出
+    pos = InStr(fname, "_")
+    If pos > 0 Then
+        code = Left(fname, pos - 1)
+        name = Mid(fname, pos + 1)
+        
+        ' 市町村コードの数字チェック
+        If IsNumeric(code) Then
+            ' 市町村コードの末尾3桁を取得
+            If Len(code) >= 3 Then
+                code = Right(code, 3)
+                
+                ' 辞書に登録されているかチェック
+                If dictMunicipalities.Exists(code) Then
+                    ' 名前も一致するかチェック
+                    If dictMunicipalities(code) = name Then
+                        IsValidFileName = True
+                    End If
+                End If
+            End If
+        End If
+    End If
 End Function
 
 ' コピー先ファイル選択
 Sub SelectDestinationFile()
-    Dim destFile As Variant
+    Dim fd As FileDialog
+    Dim destFile As String
     Dim ws As Worksheet
     
     Set ws = ThisWorkbook.Sheets("設定")
     
-    destFile = Application.GetOpenFilename( _
-        FileFilter:="Excel ファイル (*.xlsx;*.xls),*.xlsx;*.xls", _
-        Title:="コピー先ファイルを選択してください")
-    
-    If destFile <> False Then
-        ws.Range("B7").Value = destFile
-    Else
-        ' ws.Range("B7").ClearContents ' キャンセル時にクリアするかは仕様による
-        MsgBox "コピー先ファイルの選択がキャンセルされました。", vbInformation
-    End If
+    ' ファイル選択ダイアログを表示
+    Set fd = Application.FileDialog(msoFileDialogFilePicker)
+    With fd
+        .Title = "コピー先ファイルを選択"
+        .AllowMultiSelect = False
+        .Filters.Add "Excel ファイル", "*.xlsx; *.xls"
+        
+        If .Show = True Then
+            destFile = .SelectedItems(1)
+            ' 選択されたファイルを表示
+            ws.Range("B7").Value = destFile
+        End If
+    End With
 End Sub
 
 ' コピー元ファイル選択
 Sub SelectSourceFiles()
-    Dim sourceFile As Variant
-    Dim fileListRow As Long
+    Dim fd As FileDialog
+    Dim i As Integer
     Dim ws As Worksheet
-    Dim listHeaderRow As Long
-    Dim fileCounter As Integer
+    Dim response As VbMsgBoxResult
+    Dim currentFileCount As Integer
+    Dim lastRow As Long
+    Dim startIndex As Integer
+    Dim validFiles As Collection
+    Dim invalidFiles As Collection
+    Dim fileName As String
+    Dim invalidFileList As String
     
     Set ws = ThisWorkbook.Sheets("設定")
-    listHeaderRow = 9 ' "コピー元：" の行 (A9)
-    fileListRow = listHeaderRow + 1 ' リスト開始行 (A10)
-    fileCounter = 0
+    Set validFiles = New Collection
+    Set invalidFiles = New Collection
     
-    ' 現在のコピー元リストをクリア (A列の番号またはB列のパスで最終行を判断)
-    Dim lastListRow As Long
-    lastListRow = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row ' B列の最終データ行
-    If lastListRow >= fileListRow Then
-        ws.Range("A" & fileListRow & ":B" & lastListRow).ClearContents
+    ' 現在のコピー元ファイル数を正確に確認
+    lastRow = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+    If lastRow > 8 Then
+        currentFileCount = lastRow - 8
+    Else
+        currentFileCount = 0
     End If
     
-    Dim continueSelection As Boolean
-    continueSelection = True
+    WriteLog "現在のファイル数: " & currentFileCount & "件"
     
-    Do While continueSelection
-        sourceFile = Application.GetOpenFilename( _
-            FileFilter:="Excel ファイル (*.xlsx;*.xls),*.xlsx;*.xls", _
-            Title:="コピー元ファイルを選択（" & (fileCounter + 1) & "個目）", _
-            MultiSelect:=False) ' 単一ファイル選択
+    ' 既存ファイルがある場合のみ確認ダイアログを表示
+    If currentFileCount > 0 Then
+        response = MsgBox("現在選択されている " & currentFileCount & " 件のファイルがあります。" & vbCrLf & _
+                         "どちらを選択しますか？" & vbCrLf & vbCrLf & _
+                         "「はい」：現在のリストに追加" & vbCrLf & _
+                         "「いいえ」：現在のリストをクリアして新規選択" & vbCrLf & _
+                         "「キャンセル」：操作を中止", _
+                         vbYesNoCancel + vbQuestion, "ファイル選択方式")
+        
+        Select Case response
+            Case vbYes
+                ' 現在のリストに追加
+                startIndex = currentFileCount + 1
+                WriteLog "追加モードでファイル選択します"
+            Case vbNo
+                ' 現在のリストをクリア
+                If lastRow > 8 Then
+                    ws.Range("A9:B" & lastRow).ClearContents
+                End If
+                startIndex = 1
+                WriteLog "リストをクリアして新規選択します"
+            Case vbCancel
+                ' 処理中止
+                WriteLog "ファイル選択をキャンセルしました"
+                Exit Sub
+        End Select
+    Else
+        ' 既存ファイルがない場合
+        startIndex = 1
+        WriteLog "新規ファイル選択を開始します"
+    End If
+    
+    ' ファイル選択ダイアログを表示（Excelファイルのみに限定）
+    Set fd = Application.FileDialog(msoFileDialogFilePicker)
+    With fd
+        .Title = "コピー元ファイルを選択（Excelファイルのみ）"
+        .AllowMultiSelect = True
+        .Filters.Clear
+        .Filters.Add "Excel ファイル", "*.xlsx; *.xls; *.xlsm"
+        
+        If .Show = True Then
+            ' 選択されたファイルの検証
+            For i = 1 To .SelectedItems.Count
+                fileName = .SelectedItems(i)
+                ' Excelファイルかつ有効なファイル名かチェック
+                If (Right(LCase(fileName), 5) = ".xlsx" Or Right(LCase(fileName), 4) = ".xls" Or Right(LCase(fileName), 5) = ".xlsm") And IsValidFileName(fileName) Then
+                    validFiles.Add fileName
+                    WriteLog "有効ファイル: " & Dir(fileName)
+                Else
+                    invalidFiles.Add fileName
+                    WriteLog "無効ファイル: " & Dir(fileName)
+                End If
+            Next i
             
-        If sourceFile <> False Then
-            ws.Cells(fileListRow + fileCounter, "A").Value = fileCounter + 1
-            ws.Cells(fileListRow + fileCounter, "B").Value = sourceFile
-            fileCounter = fileCounter + 1
+            ' 無効なファイルがある場合はエラーメッセージを表示
+            If invalidFiles.Count > 0 Then
+                invalidFileList = ""
+                For i = 1 To invalidFiles.Count
+                    invalidFileList = invalidFileList & Dir(invalidFiles(i)) & vbCrLf
+                Next i
+                
+                MsgBox "以下のファイルは標準形式ではないため選択できません：" & vbCrLf & vbCrLf & _
+                       invalidFileList & vbCrLf & _
+                       "ファイル名は「市町村コード_市町村名.xlsx」形式である必要があります。" & vbCrLf & _
+                       "例：201_山形市.xlsx、203_鶴岡市.xlsx、999_流域.xlsx", _
+                       vbExclamation, "ファイル名エラー"
+                
+                WriteLog "エラー: " & invalidFiles.Count & "件の無効ファイルを検出"
+            End If
             
-            If MsgBox("さらにコピー元ファイルを選択しますか？", vbYesNo + vbQuestion, "ファイル選択") = vbNo Then
-                continueSelection = False
+            ' 有効なファイルのみをリストに追加
+            If validFiles.Count > 0 Then
+                For i = 1 To validFiles.Count
+                    ws.Cells(8 + startIndex + i - 1, 1).Value = startIndex + i - 1
+                    ws.Cells(8 + startIndex + i - 1, 2).Value = validFiles(i)
+                    WriteLog "ファイル追加: " & Dir(validFiles(i))
+                Next i
+                WriteLog "ファイル選択完了: " & validFiles.Count & "件選択（有効ファイルのみ）"
+            Else
+                WriteLog "有効なファイルが選択されませんでした"
             End If
         Else
-            ' ファイル選択がキャンセルされた場合
-            If fileCounter = 0 Then ' 最初の選択からキャンセルされた場合
-                 MsgBox "コピー元ファイルの選択がキャンセルされました。", vbInformation
-            End If
-            continueSelection = False
+            WriteLog "ファイル選択がキャンセルされました"
         End If
-    Loop
-    
-    If fileCounter > 0 Then
-        MsgBox fileCounter & "個のコピー元ファイルが選択されました。", vbInformation
-    ElseIf sourceFile = False And fileCounter = 0 Then
-        ' 何も選択されずにダイアログが閉じられた場合（最初のキャンセル時）
-        ' メッセージは既にSelectSourceFiles内で表示されているので、ここでは不要な場合もある
-    Else
-        MsgBox "コピー元ファイルは選択されませんでした。", vbInformation
-    End If
+    End With
 End Sub
 
-' ファイル名から市町村コードと名前を抽出
-Function ExtractMunicipalityInfo(filename As String) As Variant
-    Dim result(0 To 1) As String ' 0: code, 1: name
-    Dim shortFileName As String
-    Dim underscorePos As Integer
-    Dim extensionPos As Integer
-    Dim extractedCode As String
-    Dim extractedName As String
+' ファイル名から市町村コードと名前を抽出（厳格版）
+Function ExtractMunicipalityInfo(fileName As String) As Variant
+    Dim result(1) As String
+    Dim fname As String
+    Dim pos As Integer
+    Dim code As String
+    Dim name As String
     
-    ' ファイル名のみを取得 (パス部分を除去)
-    underscorePos = InStrRev(filename, "\")
-    If underscorePos > 0 Then
-        shortFileName = Mid(filename, underscorePos + 1)
+    result(0) = ""
+    result(1) = ""
+    
+    ' ファイル名のみを取得 (パスなし)
+    pos = InStrRev(fileName, "\")
+    If pos > 0 Then
+        fname = Mid(fileName, pos + 1)
     Else
-        shortFileName = filename
+        fname = fileName
     End If
     
     ' 拡張子を除去
-    extensionPos = InStrRev(shortFileName, ".")
-    If extensionPos > 0 Then
-        shortFileName = Left(shortFileName, extensionPos - 1)
+    pos = InStrRev(fname, ".")
+    If pos > 0 Then
+        fname = Left(fname, pos - 1)
     End If
     
-    ' 市町村コードと名前を抽出 (区切り文字は"_")
-    underscorePos = InStr(shortFileName, "_")
-    If underscorePos > 0 Then
-        extractedCode = Left(shortFileName, underscorePos - 1)
-        extractedName = Mid(shortFileName, underscorePos + 1)
+    WriteLog "ファイル名解析: " & fname
+    
+    ' 括弧がある場合は除去
+    fname = Replace(fname, "(", "")
+    fname = Replace(fname, "（", "")
+    fname = Replace(fname, ")", "")
+    fname = Replace(fname, "）", "")
+    
+    ' 市町村コードと名前を抽出
+    pos = InStr(fname, "_")
+    If pos > 0 Then
+        code = Left(fname, pos - 1)
+        name = Mid(fname, pos + 1)
         
         ' 市町村コードの末尾3桁を取得
-        If Len(extractedCode) > 3 Then
-            extractedCode = Right(extractedCode, 3)
-        End If
-        
-        result(0) = extractedCode
-        result(1) = extractedName
-        
-        ' マスターデータと照合
-        If MunicipalityCodeExists(extractedCode) Then
-            Dim masterName As String
-            masterName = GetMunicipalityName(extractedCode)
-            ' ファイル名由来の市町村名がマスター名に含まれているか確認
-            If InStr(1, masterName, extractedName, vbTextCompare) = 0 Then
-                MsgBox "警告: ファイル「" & filename & "」の市町村名「" & extractedName & "」がマスターデータ「" & masterName & "」と一致しません。", vbExclamation
+        If Len(code) >= 3 And IsNumeric(code) Then
+            code = Right(code, 3)
+            
+            ' 辞書に存在し、名前も一致するかチェック
+            If dictMunicipalities.Exists(code) And dictMunicipalities(code) = name Then
+                result(0) = code
+                result(1) = name
+                WriteLog "抽出成功: コード=" & code & ", 名前=" & name
+            Else
+                WriteLog "抽出失敗: 辞書に存在しないか名前が不一致"
             End If
         Else
-            MsgBox "警告: ファイル「" & filename & "」の市町村コード「" & extractedCode & "」がマスターデータに存在しません。", vbExclamation
+            WriteLog "抽出失敗: 市町村コードが無効"
         End If
     Else
-        MsgBox "警告: ファイル「" & filename & "」の名前が「市町村コード_市町村名」の形式になっていません。", vbExclamation
-        result(0) = "" ' 空の値を設定
-        result(1) = ""
+        WriteLog "抽出失敗: アンダースコア区切りなし"
     End If
     
     ExtractMunicipalityInfo = result
 End Function
 
-' コピー処理の実行
-Sub ExecuteCopy()
-    Dim wsSettings As Worksheet
-    Dim destFilePath As String
-    Dim sourceFilePaths() As String
-    Dim i As Long, j As Long ' ループカウンタ
-    Dim lastSourceFileRow As Long
-    Dim sourceFileCount As Long
-    Dim wbDest As Workbook, wbSource As Workbook
-    Dim wsDest As Worksheet, wsSource As Worksheet
-    Dim municipalityInfo As Variant
-    Dim targetCode As String, targetName As String
-    Dim destRowStart As Long, destRowEnd As Long
-    Dim foundMatchInDest As Boolean
-    Dim destSheetsToProcess As New Collection
-    Dim cellValue As Variant
+' シート内で市町村コードや名前を検索する関数
+Function FindMunicipalityInSheet(ws As Worksheet, code As String, name As String) As Long
+    Dim i As Long, j As Long
+    Dim cellValue As String
     Dim cellCode As String
+    
+    WriteLog "    シート「" & ws.name & "」で市町村検索: " & name & "(コード:" & code & ")"
+    
+    ' シート内をスキャンして市町村コードまたは名前を検索
+    For i = 1 To ws.UsedRange.Rows.Count
+        For j = 1 To ws.UsedRange.Columns.Count
+            If Not IsEmpty(ws.Cells(i, j).Value) Then
+                cellValue = CStr(ws.Cells(i, j).Value)
+                
+                ' 数値の場合は市町村コードとして比較
+                If IsNumeric(ws.Cells(i, j).Value) And ws.Cells(i, j).Value > 0 Then
+                    cellCode = cellValue
+                    ' 末尾3桁を取得
+                    If Len(cellCode) >= 3 Then
+                        cellCode = Right(cellCode, 3)
+                        If cellCode = code Then
+                            WriteLog "    見つかりました: 行" & i & ", セル値=" & ws.Cells(i, j).Value
+                            FindMunicipalityInSheet = i
+                            Exit Function
+                        End If
+                    End If
+                ElseIf Len(cellValue) > 0 Then
+                    ' 文字列の場合は市町村名として比較
+                    If InStr(cellValue, name) > 0 Or cellValue = name Then
+                        WriteLog "    見つかりました: 行" & i & ", セル値=" & cellValue
+                        FindMunicipalityInSheet = i
+                        Exit Function
+                    End If
+                End If
+            End If
+        Next j
+    Next i
+    
+    WriteLog "    見つかりませんでした"
+    ' 見つからない場合は0を返す
+    FindMunicipalityInSheet = 0
+End Function
+
+' ログを設定シートに出力する関数
+Sub WriteLog(message As String)
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    
+    Set ws = ThisWorkbook.Sheets("設定")
+    
+    ' ログ出力エリアの最後の行を取得（E列に変更）
+    lastRow = ws.Cells(ws.Rows.Count, "E").End(xlUp).Row
+    If lastRow < 7 Then lastRow = 7
+    
+    ' ログを出力
+    ws.Cells(lastRow + 1, 5).Value = Format(Now, "hh:mm:ss") & " " & message
+End Sub
+
+' コピー処理の実行（安全版：外部ファイルは一切変更しない）
+Sub ExecuteCopy()
+    Dim ws As Worksheet
+    Dim destFile As String
+    Dim sourceFiles() As String
+    Dim i As Integer, j As Integer
+    Dim lastRow As Long
+    Dim sourceCount As Integer
+    Dim wbDest As Workbook, wbSource As Workbook
+    Dim wsDest As Worksheet, wsSource As Worksheet, wsTarget As Worksheet
+    Dim munInfo As Variant
+    Dim code As String, name As String
+    Dim sourceRow As Long, destRow As Long
+    Dim processedCount As Integer
+    Dim skippedCount As Integer
+    Dim skippedSheetCount As Integer
+    Dim processedSheets As Collection
     
     Application.ScreenUpdating = False
     Application.DisplayAlerts = False
     
-    Set wsSettings = ThisWorkbook.Sheets("設定")
+    Set ws = ThisWorkbook.Sheets("設定")
+    Set processedSheets = New Collection
+    
+    ' ログエリアをクリア
+    ws.Range("E8:E1000").ClearContents
+    
+    WriteLog "処理を開始します（外部ファイルは変更しません）..."
     
     ' コピー先ファイルを取得
-    destFilePath = wsSettings.Range("B7").Value
-    If destFilePath = "" Then
-        MsgBox "コピー先ファイルが選択されていません。", vbExclamation
-        GoTo CleanExit_ExecuteCopy
+    destFile = ws.Range("B7").Value
+    If destFile = "" Then
+        WriteLog "エラー: コピー先ファイルが選択されていません。"
+        MsgBox "コピー先ファイルを選択してください。", vbExclamation
+        GoTo CleanExit
     End If
     
-    ' コピー元ファイルの数を取得 (B列のパスで判断)
-    lastSourceFileRow = wsSettings.Cells(wsSettings.Rows.Count, "B").End(xlUp).Row
-    sourceFileCount = 0
-    If lastSourceFileRow >= 10 Then ' コピー元リストは10行目から
-        sourceFileCount = lastSourceFileRow - 9
-    End If
-
-    If sourceFileCount <= 0 Then
-        MsgBox "コピー元ファイルが選択されていません。", vbExclamation
-        GoTo CleanExit_ExecuteCopy
+    ' コピー元ファイルの数を取得
+    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    sourceCount = lastRow - 8
+    If sourceCount <= 0 Then
+        WriteLog "エラー: コピー元ファイルが選択されていません。"
+        MsgBox "コピー元ファイルを選択してください。", vbExclamation
+        GoTo CleanExit
     End If
     
-    ' コピー元ファイルを配列に格納
-    ReDim sourceFilePaths(1 To sourceFileCount)
-    For i = 1 To sourceFileCount
-        sourceFilePaths(i) = wsSettings.Cells(9 + i, "B").Value
-        If sourceFilePaths(i) = "" Then
-            MsgBox "コピー元ファイルリストに空のエントリがあります。(行: " & 9 + i & ")", vbExclamation
-            GoTo CleanExit_ExecuteCopy
+    ' コピー元ファイルを配列に格納（空でないセルのみ）
+    ReDim sourceFiles(1 To sourceCount)
+    Dim actualCount As Integer
+    actualCount = 0
+    
+    For i = 1 To sourceCount
+        Dim filePath As String
+        filePath = Trim(ws.Cells(8 + i, 2).Value)
+        
+        ' ファイルパスが空でない場合のみ追加
+        If filePath <> "" Then
+            ' ファイルが実際に存在するかチェック
+            If Dir(filePath) <> "" Then
+                actualCount = actualCount + 1
+                ReDim Preserve sourceFiles(1 To actualCount)
+                sourceFiles(actualCount) = filePath
+                WriteLog "処理対象ファイル確認: " & Dir(filePath)
+            Else
+                WriteLog "警告: ファイルが見つかりません - " & filePath
+                skippedCount = skippedCount + 1
+            End If
         End If
     Next i
     
-    ' コピー先ファイルを開く
-    On Error Resume Next
-    Set wbDest = Workbooks.Open(destFilePath, ReadOnly:=False)
-    If Err.Number <> 0 Then
-        MsgBox "コピー先ファイル「" & destFilePath & "」が開けませんでした: " & Err.Description, vbCritical
-        Err.Clear
-        GoTo CleanExit_ExecuteCopy
+    If actualCount = 0 Then
+        WriteLog "エラー: 処理可能なファイルがありません。"
+        MsgBox "処理可能なファイルがありません。", vbExclamation
+        GoTo CleanExit
     End If
+    
+    WriteLog "コピー先ファイル（雛形）を読み取り専用で開いています..."
+    
+    ' コピー先ファイルを読み取り専用で開く
+    On Error GoTo ErrorHandler
+    Set wbDest = Workbooks.Open(destFile, ReadOnly:=True)
     On Error GoTo 0
     
-    ' 処理対象のシートを特定（コピー先ブックの "設定" シート以外）
-    Dim tempSheet As Worksheet
-    For Each tempSheet In wbDest.Sheets
-        If tempSheet.name <> "設定" Then ' "Sheet1" も対象とする場合あり。要件確認。
-            destSheetsToProcess.Add tempSheet
-        End If
-    Next tempSheet
+    WriteLog "現在のファイルに統合シートを作成中..."
     
-    If destSheetsToProcess.Count = 0 Then
-        MsgBox "コピー先ファイルに処理対象のデータシートがありません。", vbInformation
-        wbDest.Close SaveChanges:=False
-        GoTo CleanExit_ExecuteCopy
-    End If
-    
-    ' 各コピー元ファイルを処理
-    For i = 1 To sourceFileCount
-        municipalityInfo = ExtractMunicipalityInfo(sourceFilePaths(i))
-        targetCode = CStr(municipalityInfo(0)) ' CStrで文字列型に統一
-        targetName = CStr(municipalityInfo(1))
-        
-        If targetCode <> "" And targetName <> "" Then ' 有効な市町村情報が抽出できた場合のみ
+    ' 現在のファイルに雛形のシートをコピー（設定シート以外）
+    For Each wsDest In wbDest.Sheets
+        If wsDest.name <> "設定" Then
+            ' 既存の同名シートがあるかチェック
+            Set wsTarget = Nothing
             On Error Resume Next
-            Set wbSource = Workbooks.Open(sourceFilePaths(i), ReadOnly:=True)
-            If Err.Number <> 0 Then
-                MsgBox "コピー元ファイル「" & sourceFilePaths(i) & "」が開けませんでした: " & Err.Description, vbExclamation
-                Err.Clear
-                GoTo NextSourceFile_Loop ' 次のコピー元ファイルへ
-            End If
+            Set wsTarget = ThisWorkbook.Sheets(wsDest.name)
             On Error GoTo 0
             
-            For Each wsDest In destSheetsToProcess
-                ' コピー元に同名のシートがあるか確認
-                On Error Resume Next
-                Set wsSource = Nothing ' 初期化
-                Set wsSource = wbSource.Sheets(wsDest.name)
-                On Error GoTo 0
-                
-                If Not wsSource Is Nothing Then
-                    foundMatchInDest = False
-                    destRowStart = 0
-                    
-                    ' コピー先シート内で市町村コードまたは名前を検索
-                    Dim r As Long, c As Long
-                    For r = 1 To wsDest.UsedRange.Rows.Count + wsDest.UsedRange.Row -1 ' UsedRangeの開始行も考慮
-                        For c = 1 To wsDest.UsedRange.Columns.Count + wsDest.UsedRange.Column -1 ' UsedRangeの開始列も考慮
-                            cellValue = wsDest.Cells(r, c).Value
-                            If Not IsEmpty(cellValue) Then
-                                ' 市町村コードの検索 (末尾3桁で比較)
-                                If IsNumeric(cellValue) Then
-                                    cellCode = CStr(cellValue)
-                                    If Len(cellCode) >= 3 Then
-                                        cellCode = Right(cellCode, 3)
-                                        If cellCode = targetCode Then
-                                            destRowStart = r
-                                            foundMatchInDest = True
-                                            Exit For
-                                        End If
-                                    End If
-                                ElseIf TypeName(cellValue) = "String" Then
-                                    ' 市町村名での検索 (完全一致または部分一致は要件による)
-                                    If InStr(1, CStr(cellValue), targetName, vbTextCompare) > 0 Then ' 部分一致を許容
-                                        destRowStart = r
-                                        foundMatchInDest = True
-                                        Exit For
-                                    End If
-                                End If
-                            End If
-                        Next c
-                        If foundMatchInDest Then Exit For
-                    Next r
-                    
-                    If foundMatchInDest Then
-                        ' 次の市町村ブロックの開始行、またはデータ末尾を特定
-                        Dim nextBlockStartRow As Long
-                        nextBlockStartRow = wsDest.UsedRange.Rows.Count + wsDest.UsedRange.Row ' デフォルトは最終行の次
-                        
-                        Dim tempR As Long, tempC As Long, tempCellCode As String
-                        For tempR = destRowStart + 1 To wsDest.UsedRange.Rows.Count + wsDest.UsedRange.Row -1
-                            Dim isNewBlock As Boolean
-                            isNewBlock = False
-                            For tempC = 1 To wsDest.UsedRange.Columns.Count + wsDest.UsedRange.Column - 1 ' UsedRangeの範囲内で
-                                If IsNumeric(wsDest.Cells(tempR, tempC).Value) Then
-                                    tempCellCode = CStr(wsDest.Cells(tempR, tempC).Value)
-                                    If Len(tempCellCode) >= 3 Then
-                                        tempCellCode = Right(tempCellCode, 3)
-                                        If MunicipalityCodeExists(tempCellCode) And tempCellCode <> targetCode Then
-                                            isNewBlock = True
-                                            Exit For
-                                        End If
-                                    End If
-                                End If
-                            Next tempC
-                            If isNewBlock Then
-                                nextBlockStartRow = tempR
-                                Exit For
-                            End If
-                        Next tempR
-                        
-                        Dim sourceDataRange As Range
-                        Dim destBlockRows As Long, sourceDataRows As Long
-                        
-                        Set sourceDataRange = wsSource.UsedRange ' コピー元は全域が対象データと仮定
-                        sourceDataRows = sourceDataRange.Rows.Count
-                        
-                        destBlockRows = nextBlockStartRow - destRowStart
-                        
-                        If sourceDataRows > destBlockRows Then
-                            Dim rowsToInsert As Long
-                            rowsToInsert = sourceDataRows - destBlockRows
-                            wsDest.Rows(nextBlockStartRow).Resize(rowsToInsert).Insert Shift:=xlDown
-                            ' 挿入した行に色を付ける (挿入された範囲は nextBlockStartRow から rowsToInsert 行)
-                            wsDest.Range(wsDest.Cells(nextBlockStartRow, 1), wsDest.Cells(nextBlockStartRow + rowsToInsert - 1, wsDest.UsedRange.Columns.Count + wsDest.UsedRange.Column -1)).Interior.Color = RGB(255, 200, 200)
-                        ElseIf sourceDataRows < destBlockRows Then
-                            ' コピー元よりコピー先ブロックが大きい場合、余分な行を削除することも検討できるが、要件にはない
-                        End If
-                        
-                        ' データをコピー (値のみ)
-                        sourceDataRange.Copy
-                        wsDest.Cells(destRowStart, 1).PasteSpecial Paste:=xlPasteValues
-                        Application.CutCopyMode = False
-                        
-                    Else
-                        MsgBox "シート「" & wsDest.name & "」に市町村「" & targetName & "」(コード:" & targetCode & ")が見つかりませんでした。", vbInformation
-                    End If
-                Else
-                     'MsgBox "コピー元ファイル「" & wbSource.name & "」にシート「" & wsDest.name & "」が見つかりませんでした。", vbInformation
-                End If
-                Set wsSource = Nothing ' 次のループのためにクリア
-            Next wsDest
+            If wsTarget Is Nothing Then
+                ' 新規シートを作成
+                Set wsTarget = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+                wsTarget.name = wsDest.name
+                WriteLog "新規シート「" & wsDest.name & "」を作成しました"
+            Else
+                ' 既存シートをクリア
+                wsTarget.Cells.Clear
+                WriteLog "既存シート「" & wsDest.name & "」をクリアしました"
+            End If
             
-            wbSource.Close SaveChanges:=False
+            ' 雛形データをコピー
+            wsDest.UsedRange.Copy
+            wsTarget.Range("A1").PasteSpecial xlPasteAll
+            Application.CutCopyMode = False
+            wsTarget.Columns.AutoFit
+            
+            processedSheets.Add wsDest.name
+            WriteLog "雛形データをコピー: シート「" & wsDest.name & "」"
         End If
-NextSourceFile_Loop:
+    Next wsDest
+    
+    WriteLog "処理対象ファイル数: " & actualCount & "件"
+    
+    ' 各コピー元ファイルを処理
+    For i = 1 To actualCount
+        ' コピー元ファイルから市町村情報を抽出
+        munInfo = ExtractMunicipalityInfo(sourceFiles(i))
+        code = munInfo(0)
+        name = munInfo(1)
+        
+        If code = "" Or name = "" Then
+            WriteLog "スキップ: ファイル名から市町村情報を取得できませんでした - " & Dir(sourceFiles(i))
+            skippedCount = skippedCount + 1
+            GoTo NextFile
+        End If
+        
+        WriteLog "処理中: " & name & " (コード:" & code & ")"
+        
+        ' コピー元ファイルを読み取り専用で開く
+        On Error GoTo ErrorHandler
+        Set wbSource = Workbooks.Open(sourceFiles(i), ReadOnly:=True)
+        On Error GoTo 0
+        
+        ' 各シートについて処理
+        Dim sheetProcessed As Boolean
+        sheetProcessed = False
+        
+        For j = 1 To wbSource.Sheets.Count
+            Set wsSource = wbSource.Sheets(j)
+            
+            ' 現在のファイルに同名のシートがあるか確認
+            On Error Resume Next
+            Set wsTarget = ThisWorkbook.Sheets(wsSource.name)
+            On Error GoTo 0
+            
+            If Not wsTarget Is Nothing Then
+                ' 両方のシートで市町村コードまたは名前を検索
+                sourceRow = FindMunicipalityInSheet(wsSource, code, name)
+                destRow = FindMunicipalityInSheet(wsTarget, code, name)
+                
+                If sourceRow > 0 And destRow > 0 Then
+                    ' データを現在のファイル内のシートに統合
+                    Call IntegrateMunicipalityData(wsSource, wsTarget, sourceRow, destRow, code, name)
+                    WriteLog "  統合完了: シート「" & wsSource.name & "」"
+                    sheetProcessed = True
+                ElseIf sourceRow = 0 Then
+                    WriteLog "  スキップ: コピー元シート「" & wsSource.name & "」に" & name & "のデータが見つかりません"
+                    skippedSheetCount = skippedSheetCount + 1
+                ElseIf destRow = 0 Then
+                    WriteLog "  スキップ: 統合先シート「" & wsSource.name & "」に" & name & "のデータが見つかりません"
+                    skippedSheetCount = skippedSheetCount + 1
+                End If
+            End If
+        Next j
+        
+        If sheetProcessed Then
+            processedCount = processedCount + 1
+        Else
+            WriteLog "  スキップ: " & name & " - 処理可能なシートがありませんでした"
+            skippedCount = skippedCount + 1
+        End If
+        
+        ' コピー元ファイルを保存せずに閉じる
+        wbSource.Close SaveChanges:=False
+        
+NextFile:
     Next i
     
-    If Not wbDest Is Nothing Then
-        If wbDest.Saved = False Then ' 何か変更があった場合のみ保存
-            wbDest.Save
-        End If
-        wbDest.Close SaveChanges:=True ' 保存して閉じる
-    End If
+    ' コピー先ファイル（雛形）を保存せずに閉じる
+    wbDest.Close SaveChanges:=False
     
-    MsgBox "コピー処理が完了しました。", vbInformation
+    WriteLog "処理完了: " & processedCount & "件処理, " & skippedCount & "件スキップ, " & skippedSheetCount & "シートスキップ"
+    WriteLog "外部ファイルは一切変更されていません。"
+    MsgBox "データ統合処理が完了しました。" & vbCrLf & _
+           "処理件数: " & processedCount & "件" & vbCrLf & _
+           "スキップ件数: " & skippedCount & "件" & vbCrLf & _
+           "スキップシート数: " & skippedSheetCount & "シート" & vbCrLf & vbCrLf & _
+           "※外部ファイルは一切変更されていません。" & vbCrLf & _
+           "詳細は設定シートのログをご確認ください。"
 
-CleanExit_ExecuteCopy:
+CleanExit:
     Application.DisplayAlerts = True
     Application.ScreenUpdating = True
-    Set wsSettings = Nothing
-    Set wbDest = Nothing
-    Set wbSource = Nothing
-    Set wsDest = Nothing
-    Set wsSource = Nothing
-    Set destSheetsToProcess = Nothing
+    Exit Sub
+
+ErrorHandler:
+    WriteLog "エラー: " & Err.Description
+    MsgBox "エラーが発生しました: " & Err.Description
+    Resume CleanExit
 End Sub
 
-' 設定のクリア
+' 市町村データの統合処理（上書き方式、必要時のみ行追加）
+Sub IntegrateMunicipalityData(wsSource As Worksheet, wsTarget As Worksheet, sourceStartRow As Long, targetStartRow As Long, code As String, name As String)
+    Dim sourceEndRow As Long, targetEndRow As Long
+    Dim sourceDataRows As Long, targetDataRows As Long
+    Dim copyRange As Range
+    
+    ' コピー元の終了行を特定
+    sourceEndRow = FindNextMunicipalityRow(wsSource, sourceStartRow + 1, code)
+    If sourceEndRow = 0 Then sourceEndRow = wsSource.UsedRange.Rows.Count + 1
+    
+    ' 統合先の終了行を特定
+    targetEndRow = FindNextMunicipalityRow(wsTarget, targetStartRow + 1, code)
+    If targetEndRow = 0 Then targetEndRow = wsTarget.UsedRange.Rows.Count + 1
+    
+    ' データ行数を計算
+    sourceDataRows = sourceEndRow - sourceStartRow
+    targetDataRows = targetEndRow - targetStartRow
+    
+    WriteLog "    データ行数比較: コピー元=" & sourceDataRows & "行, 統合先=" & targetDataRows & "行"
+    
+    ' コピー元の行数が統合先より多い場合のみ行を追加
+    If sourceDataRows > targetDataRows Then
+        ' 足りない行数を追加（該当市町村データの下に）
+        Dim insertRows As Long
+        insertRows = sourceDataRows - targetDataRows
+        wsTarget.Rows(targetEndRow).Resize(insertRows).Insert Shift:=xlDown
+        WriteLog "    行追加: " & insertRows & "行を該当市町村データの下に追加"
+    End If
+    
+    ' データを統合（上書き方式、数式・書式・値すべて）
+    Set copyRange = wsSource.Rows(sourceStartRow).Resize(sourceDataRows)
+    copyRange.Copy
+    
+    ' 値、数式、書式をすべて上書き統合（色付けなし）
+    wsTarget.Cells(targetStartRow, 1).PasteSpecial xlPasteAll
+    
+    Application.CutCopyMode = False
+    
+    WriteLog "    統合完了: " & sourceDataRows & "行のデータを上書き統合"
+End Sub
+
+' 次の市町村データの開始行を検索
+Function FindNextMunicipalityRow(ws As Worksheet, startRow As Long, currentCode As String) As Long
+    Dim i As Long, j As Long
+    Dim cellValue As String
+    Dim cellCode As String
+    
+    For i = startRow To ws.UsedRange.Rows.Count
+        For j = 1 To ws.UsedRange.Columns.Count
+            If IsNumeric(ws.Cells(i, j).Value) Then
+                cellCode = CStr(ws.Cells(i, j).Value)
+                ' 末尾3桁を取得
+                If Len(cellCode) >= 3 Then
+                    cellCode = Right(cellCode, 3)
+                    If dictMunicipalities.Exists(cellCode) And cellCode <> currentCode Then
+                        FindNextMunicipalityRow = i
+                        Exit Function
+                    End If
+                End If
+            End If
+        Next j
+    Next i
+    
+    FindNextMunicipalityRow = 0
+End Function
+
+' 設定のクリア（必要な項目は保持）
 Sub ClearSettings()
     Dim ws As Worksheet
-    Dim lastListRow As Long
-    Dim listStartRow As Long
+    Dim lastRow As Long
     
     Set ws = ThisWorkbook.Sheets("設定")
-    listStartRow = 10 ' コピー元リストのデータ開始行
+    
+    WriteLog "設定をクリアします..."
     
     ' コピー先ファイルをクリア
     ws.Range("B7").ClearContents
+    WriteLog "コピー先ファイルをクリアしました"
     
-    ' コピー元ファイルリストをクリア (B列基準)
-    lastListRow = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
-    If lastListRow >= listStartRow Then
-        ws.Range("A" & listStartRow & ":B" & lastListRow).ClearContents
+    ' コピー元ファイルリストをクリア（9行目以降のA列とB列のみ）
+    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    If lastRow > 9 Then
+        ws.Range("A9:A" & lastRow).ClearContents
+        ws.Range("B9:B" & lastRow).ClearContents
+        WriteLog "コピー元ファイルリストをクリアしました（" & (lastRow - 8) & "件）"
     End If
     
-    MsgBox "設定がクリアされました。", vbInformation
-    Set ws = Nothing
+    ' 処理で作成されたシートを削除
+    Call DeleteCreatedSheets
+    
+    ' ログをクリア（ヘッダーは保持）
+    ws.Range("E8:E1000").ClearContents
+    ws.Range("E7").Value = "処理結果がここに表示されます"
+    
+    WriteLog "すべての設定とシートがクリアされました。"
+    
+    MsgBox "設定のクリアが完了しました。" & vbCrLf & _
+           "・コピー先ファイル: クリア" & vbCrLf & _
+           "・コピー元ファイルリスト: クリア" & vbCrLf & _
+           "・処理で作成されたシート: 削除" & vbCrLf & _
+           "・処理ログ: クリア", vbInformation, "クリア完了"
+End Sub
+
+' 処理で作成されたシートを削除する関数
+Sub DeleteCreatedSheets()
+    Dim ws As Worksheet
+    Dim sheetsToDelete As Collection
+    Dim sheetName As String
+    Dim deletedCount As Integer
+    
+    Set sheetsToDelete = New Collection
+    
+    ' 削除対象のシートを特定（設定シート以外）
+    For Each ws In ThisWorkbook.Sheets
+        If ws.name <> "設定" Then
+            sheetsToDelete.Add ws.name
+        End If
+    Next ws
+    
+    ' シートを削除
+    If sheetsToDelete.Count > 0 Then
+        Application.DisplayAlerts = False
+        
+        Dim i As Integer
+        For i = 1 To sheetsToDelete.Count
+            sheetName = sheetsToDelete(i)
+            On Error Resume Next
+            ThisWorkbook.Sheets(sheetName).Delete
+            If Err.Number = 0 Then
+                WriteLog "シート「" & sheetName & "」を削除しました"
+                deletedCount = deletedCount + 1
+            Else
+                WriteLog "シート「" & sheetName & "」の削除に失敗: " & Err.Description
+            End If
+            On Error GoTo 0
+        Next i
+        
+        Application.DisplayAlerts = True
+        WriteLog "処理で作成されたシートを削除しました（" & deletedCount & "件）"
+    Else
+        WriteLog "削除対象のシートがありません"
+    End If
 End Sub
 
 ' シートのエクスポート
 Sub ExportSheets()
-    Dim ws As Worksheet
     Dim wbNew As Workbook
-    Dim exportFolderPath As String
-    Dim currentSheetName As String
+    Dim wsSource As Worksheet
+    Dim wsTarget As Worksheet
+    Dim filePath As Variant
+    Dim fileName As String
+    Dim originalFileName As String
+    Dim exportCount As Integer
     
-    exportFolderPath = GetSaveAsFolder("エクスポート先フォルダを選択")
+    ' 現在のファイルに統合シートが存在するかチェック
+    Dim hasSheets As Boolean
+    hasSheets = False
     
-    If exportFolderPath = "" Then
-        MsgBox "フォルダが選択されませんでした。処理を中止します。", vbInformation
-        Exit Sub
-    End If
-    
-    Application.ScreenUpdating = False
-    Application.DisplayAlerts = False
-    
+    Dim ws As Worksheet
     For Each ws In ThisWorkbook.Sheets
-        currentSheetName = ws.name
-        If currentSheetName <> "設定" Then ' 設定シート以外をエクスポート
-            ws.Copy ' シートを新しいブックにコピー (新しいブックがアクティブになる)
-            Set wbNew = ActiveWorkbook ' 新しく作成されたブックを取得
-            
-            On Error Resume Next
-            wbNew.SaveAs Filename:=exportFolderPath & "\" & currentSheetName & ".xlsx", FileFormat:=xlOpenXMLWorkbook
-            If Err.Number <> 0 Then
-                MsgBox "シート「" & currentSheetName & "」のエクスポートに失敗しました。" & vbCrLf & Err.Description, vbCritical
-                Err.Clear
-            End If
-            On Error GoTo 0
-            
-            wbNew.Close SaveChanges:=False
-            Set wbNew = Nothing
+        If ws.name <> "設定" Then
+            hasSheets = True
+            Exit For
         End If
     Next ws
     
-    Application.DisplayAlerts = True
-    Application.ScreenUpdating = True
+    If Not hasSheets Then
+        MsgBox "エクスポートするシートがありません。先にコピー処理を実行してください。"
+        Exit Sub
+    End If
     
-    MsgBox "シートのエクスポートが完了しました。" & vbCrLf & "保存先: " & exportFolderPath, vbInformation
-    Set ws = Nothing
+    ' コピー先ファイル名から元のファイル名を取得
+    originalFileName = ThisWorkbook.Sheets("設定").Range("B7").Value
+    If originalFileName <> "" Then
+        ' パスを除去してファイル名のみ取得
+        Dim pos As Integer
+        pos = InStrRev(originalFileName, "\")
+        If pos > 0 Then
+            originalFileName = Mid(originalFileName, pos + 1)
+        End If
+        
+        ' 拡張子を除去
+        pos = InStrRev(originalFileName, ".")
+        If pos > 0 Then
+            originalFileName = Left(originalFileName, pos - 1)
+        End If
+        
+        ' デフォルトファイル名を設定
+        fileName = "山形県_" & originalFileName & ".xlsx"
+    Else
+        fileName = "山形県_調査結果.xlsx"
+    End If
+    
+    ' ファイル保存ダイアログを表示（GetSaveAsFilenameを使用）
+    filePath = Application.GetSaveAsFilename( _
+        InitialFilename:=fileName, _
+        FileFilter:="Excel ファイル (*.xlsx), *.xlsx", _
+        Title:="統合ファイルの保存先とファイル名を指定")
+    
+    ' キャンセルされた場合
+    If filePath = False Then
+        Exit Sub
+    End If
+    
+    WriteLog "統合ファイルのエクスポートを開始します..."
+    
+    ' 新しいブックを作成
+    Set wbNew = Workbooks.Add
+    
+    ' デフォルトのシートを削除
+    Application.DisplayAlerts = False
+    While wbNew.Sheets.Count > 1
+        wbNew.Sheets(wbNew.Sheets.Count).Delete
+    Wend
+    Application.DisplayAlerts = True
+    
+    ' 最初のシートの名前を一時的に変更
+    wbNew.Sheets(1).name = "TempSheet"
+    
+    ' 設定シート以外の各シートをコピー
+    For Each wsSource In ThisWorkbook.Sheets
+        If wsSource.name <> "設定" Then
+            ' シートをコピー
+            wsSource.Copy After:=wbNew.Sheets(wbNew.Sheets.Count)
+            exportCount = exportCount + 1
+            WriteLog "シート「" & wsSource.name & "」をエクスポートしました"
+        End If
+    Next wsSource
+    
+    ' 一時シートを削除
+    Application.DisplayAlerts = False
+    wbNew.Sheets("TempSheet").Delete
+    Application.DisplayAlerts = True
+    
+    ' ファイルを保存
+    wbNew.SaveAs filePath, FileFormat:=xlOpenXMLWorkbook
+    
+    ' ブックを閉じる
+    wbNew.Close SaveChanges:=False
+    
+    WriteLog "統合エクスポート完了: " & exportCount & "シート"
+    MsgBox "統合ファイルのエクスポートが完了しました。" & vbCrLf & _
+           "エクスポートシート数: " & exportCount & "シート" & vbCrLf & _
+           "保存先: " & filePath
 End Sub
 
-' フォルダ選択ダイアログ
-Function GetSaveAsFolder(Optional Title As String = "フォルダを選択してください") As String
-    Dim fldr As Object ' FileDialog
-    Dim selectedFolder As String
-
-    Set fldr = Application.FileDialog(4) ' msoFileDialogFolderPicker = 4
-
-    With fldr
-        .Title = Title
-        .AllowMultiSelect = False
-        If .Show <> -1 Then ' Showが-1(True)でなければキャンセル
-            GetSaveAsFolder = "" ' キャンセル時は空文字
-            Exit Function
-        End If
-        selectedFolder = .SelectedItems(1)
-    End With
-    
-    GetSaveAsFolder = selectedFolder
-    Set fldr = Nothing
-End Function
+' CopyResultsToCurrentFile関数は不要になったため削除または簡素化
